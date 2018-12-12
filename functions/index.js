@@ -29,7 +29,7 @@ var exports = (module.exports = {});
  *      When a review goes to review, check the modelResults table to see if any exist.
  *
  * When a user reviews an answer:
- *  If the question has >10 reviews:
+ *  If the question has >5 reviews:
  *      Use those X reviews as training data
  *          (Input:
  *              Word count (WordCount / MaxWordCount),
@@ -39,8 +39,7 @@ var exports = (module.exports = {});
  *
  */
 
-// exports.onAnswer = functions.https.onCall(async ({ questionId, answerId }) => {
-exports.onAnswer = async ({ questionId, answerId }) => {
+exports.onAnswer = functions.https.onCall(async ({ questionId, answerId }) => {
   const question = await getQuestion(questionId);
   const answer = await getAnswer(answerId);
 
@@ -77,19 +76,20 @@ exports.onAnswer = async ({ questionId, answerId }) => {
     .set({
       answerId,
       questionId,
-      modelResults
+      modelResults,
+      createdAt: Date.now()
     });
 
   return modelResults;
-};
+});
 
 exports.onReview = functions.https.onCall(async ({ questionId, answerId }) => {
   // Get question and answer from firebase
   const { question, answers } = await getQuestionWithAnswers(questionId);
   const answer = await getAnswer(answerId);
 
-  // If question has more than 10 reviewed answers
-  if (!answers.filter(answer => answer.isReviewed).length > 5) {
+  // If question has more than 5 reviewed answers
+  if (answers.filter(answer => answer.isReviewed).length < 5) {
     console.log(`Question currently has ${answer.length}, will not review`);
     return;
   }
@@ -114,29 +114,28 @@ exports.onReview = functions.https.onCall(async ({ questionId, answerId }) => {
   console.log("New model trained:", trainingResults);
 
   // Run with the most recently added datum
-  const encodedAnswer = await encodeAnswer(
-    answer.answer,
-    question.keywords,
-    question.maxWordCount
-  );
+  // const encodedAnswer = await encodeAnswer(
+  //   answer.answer,
+  //   question.keywords,
+  //   question.maxWordCount
+  // );
 
-  let modelResults = net.run(encodedAnswer);
+  // let modelResults = net.run(encodedAnswer);
 
-  console.log("Model results ", modelResults);
+  // console.log("Model results ", modelResults);
 
-  // Store model results data
-  firebase
-    .firestore()
-    .collection("modelResults")
-    .doc(answerId)
-    .set({
-      answerId,
-      questionId,
-      modelResults
-    });
+  // // Store model results data
+  // firebase
+  //   .firestore()
+  //   .collection("modelResults")
+  //   .doc(answerId)
+  //   .set({
+  //     answerId,
+  //     questionId,
+  //     modelResults,
+  //     createdAt: Date.now()
+  //   });
 
-  const todaysDate = new Date(Date.now()).toLocaleString();
-  const fileName = `models/${todaysDate}-${questionId}.json`;
   // Store model json data
   const model = JSON.stringify(net.toJSON());
 
@@ -149,13 +148,13 @@ exports.onReview = functions.https.onCall(async ({ questionId, answerId }) => {
       model
     });
 
-  return modelResults;
+  return true;
 });
 
-exports
-  .onAnswer({
-    questionId: "JFPIUDFrQiGDFXE1Tyfn",
-    answerId: "dYG7bdFo04ZeYwUpJjuP"
-  })
-  .then(console.log);
+// exports
+//   .onAnswer({
+//     questionId: "JFPIUDFrQiGDFXE1Tyfn",
+//     answerId: "dYG7bdFo04ZeYwUpJjuP"
+//   })
+//   .then(console.log);
 // exports.onReview("4ulGL3j6ZYl10InESptD", "muLwGB4C6aDeHfZITE1G").then(console.log);

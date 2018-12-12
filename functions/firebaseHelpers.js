@@ -39,10 +39,11 @@ exports.getQuestionWithAnswers = async questionId => {
   return { question, answers };
 };
 
-exports.newItem = (type, content) => {
-  firebase
+exports.newItem = async (type, content) => {
+  const ref = firebase
     .firestore()
     .collection(type)
-    .doc()
-    .set(content);
+    .doc();
+  await ref.set(content);
+  return ref.id;
 };
